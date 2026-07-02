@@ -352,7 +352,7 @@
         API_URL +
         '?callback=' + encodeURIComponent(callbackName) +
         '&password=' + encodeURIComponent(password);
-       alert(url);
+       
       jsonpScript = document.createElement('script');
       jsonpScript.src = url;
       jsonpScript.onerror = function () {
