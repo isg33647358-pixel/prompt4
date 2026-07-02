@@ -321,189 +321,331 @@
   </div>
 
   <script>
-    const API_URL = 'https://script.google.com/macros/s/AKfycbzO32POM0HfSA8k1V06giLuRKb44JP2kYKu14LptvVB26cD4GEN1HDPjJnpeHchcA3Pdw/exec';
+  const API_URL = '<script>
+  const API_URL = 'https://script.google.com/macros/s/AKfycbw1_WTICp34ZZSnvGf2aCG56eCi-w_GrlXlDe5zK5sHCsS-xc7dKApCQ1g0fh9n3J0ZiQ/exec';
 
-    let currentPromptBody = '';
-    let jsonpScript = null;
+  let currentPromptBody = '';
 
-    function loadPrompt() {
-      const passwordInput = document.getElementById('passwordInput');
-      const password = passwordInput.value.trim();
+  async function loadPrompt() {
+    const passwordInput = document.getElementById('passwordInput');
+    const password = passwordInput.value.trim();
 
-      if (!password) {
-        showStatus('암호를 입력하세요.', 'error');
-        passwordInput.focus();
-        return;
-      }
-
-      hideKeyboard(passwordInput);
-      setLoading(true);
-      showStatus('프롬프트를 불러오는 중입니다.', 'info');
-
-      const callbackName = 'digitalonReceiverCallback_' + Date.now();
-
-      window[callbackName] = function (result) {
-        cleanupJsonp(callbackName);
-        setLoading(false);
-        handleApiResult(result);
-      };
-
-      const url =
-        API_URL +
-        '?callback=' + encodeURIComponent(callbackName) +
-        '&password=' + encodeURIComponent(password);
-       
-      jsonpScript = document.createElement('script');
-      jsonpScript.src = url;
-      jsonpScript.onerror = function () {
-        cleanupJsonp(callbackName);
-        setLoading(false);
-        showStatus('연결에 실패했습니다. 인터넷 상태를 확인한 뒤 다시 시도하세요.', 'error');
-      };
-
-      document.body.appendChild(jsonpScript);
+    if (!password) {
+      showStatus('암호를 입력하세요.', 'error');
+      passwordInput.focus();
+      return;
     }
 
-    function handleApiResult(result) {
-      if (!result) {
-        showStatus('응답을 받지 못했습니다.', 'error');
-        return;
-      }
+    hideKeyboard(passwordInput);
+    setLoading(true);
+    showStatus('프롬프트를 불러오는 중입니다.', 'info');
 
-      if (!result.ok) {
-        hidePrompt();
+    try {
+      const url = API_URL + '?password=' + encodeURIComponent(password) + '&t=' + Date.now();
 
-        if (result.status === 'WRONG_PASSWORD') {
-          showStatus('암호가 맞지 않습니다.', 'error');
-          return;
-        }
+      const response = await fetch(url, {
+        method: 'GET',
+        cache: 'no-store'
+      });
 
-        if (result.status === 'NOT_SENT') {
-          showStatus('암호는 맞지만 아직 송출된 프롬프트가 없습니다.', 'info');
-          return;
-        }
+      const result = await response.json();
 
-        showStatus(result.message || '프롬프트를 불러오지 못했습니다.', 'error');
-        return;
-      }
+      setLoading(false);
+      handleApiResult(result);
 
-      const data = result.data || {};
+    } catch (error) {
+      setLoading(false);
+      showStatus('연결에 실패했습니다. 인터넷 상태를 확인한 뒤 다시 시도하세요.', 'error');
+    }
+  }
 
-      currentPromptBody = data.body || '';
-
-      document.getElementById('promptMeta').textContent = [
-        data.promptId ? '프롬프트번호: ' + data.promptId : '',
-        data.sentAt ? '송출시각: ' + data.sentAt : ''
-      ].filter(Boolean).join(' · ');
-
-      document.getElementById('promptTitle').textContent = data.title || '프롬프트';
-      document.getElementById('promptBody').textContent = currentPromptBody;
-      document.getElementById('promptCard').classList.remove('hidden');
-
-      showStatus('프롬프트를 불러왔습니다.', 'ok');
+  function handleApiResult(result) {
+    if (!result) {
+      showStatus('응답을 받지 못했습니다.', 'error');
+      return;
     }
 
-    function copyPrompt() {
-      const text = String(currentPromptBody || '').trim();
+    if (!result.ok) {
+      hidePrompt();
 
-      if (!text) {
-        showStatus('복사할 프롬프트가 없습니다.', 'error');
+      if (result.status === 'WRONG_PASSWORD') {
+        showStatus('암호가 맞지 않습니다.', 'error');
         return;
       }
 
-      if (navigator.clipboard && window.isSecureContext) {
-        navigator.clipboard.writeText(text)
-          .then(function () {
-            showStatus('프롬프트 본문을 복사했습니다.', 'ok');
-          })
-          .catch(function () {
-            fallbackCopy(text);
-          });
-
+      if (result.status === 'NOT_SENT') {
+        showStatus('암호는 맞지만 아직 송출된 프롬프트가 없습니다.', 'info');
         return;
       }
 
-      fallbackCopy(text);
+      showStatus(result.message || '프롬프트를 불러오지 못했습니다.', 'error');
+      return;
     }
 
-    function fallbackCopy(text) {
-      const textarea = document.createElement('textarea');
+    const data = result.data || {};
 
-      textarea.value = text;
-      textarea.setAttribute('readonly', '');
-      textarea.style.position = 'fixed';
-      textarea.style.left = '-9999px';
-      textarea.style.top = '0';
+    currentPromptBody = data.body || '';
 
-      document.body.appendChild(textarea);
-      textarea.focus();
-      textarea.select();
-      textarea.setSelectionRange(0, textarea.value.length);
+    document.getElementById('promptMeta').textContent = [
+      data.promptId ? '프롬프트번호: ' + data.promptId : '',
+      data.sentAt ? '송출시각: ' + data.sentAt : ''
+    ].filter(Boolean).join(' · ');
 
-      try {
-        const success = document.execCommand('copy');
+    document.getElementById('promptTitle').textContent = data.title || '프롬프트';
+    document.getElementById('promptBody').textContent = currentPromptBody;
+    document.getElementById('promptCard').classList.remove('hidden');
 
-        if (success) {
+    showStatus('프롬프트를 불러왔습니다.', 'ok');
+  }
+
+  function copyPrompt() {
+    const text = String(currentPromptBody || '').trim();
+
+    if (!text) {
+      showStatus('복사할 프롬프트가 없습니다.', 'error');
+      return;
+    }
+
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(text)
+        .then(function () {
           showStatus('프롬프트 본문을 복사했습니다.', 'ok');
-        } else {
-          showStatus('복사에 실패했습니다. 본문을 직접 선택해 복사하세요.', 'error');
-        }
-      } catch (error) {
+        })
+        .catch(function () {
+          fallbackCopy(text);
+        });
+
+      return;
+    }
+
+    fallbackCopy(text);
+  }
+
+  function fallbackCopy(text) {
+    const textarea = document.createElement('textarea');
+
+    textarea.value = text;
+    textarea.setAttribute('readonly', '');
+    textarea.style.position = 'fixed';
+    textarea.style.left = '-9999px';
+    textarea.style.top = '0';
+
+    document.body.appendChild(textarea);
+    textarea.focus();
+    textarea.select();
+    textarea.setSelectionRange(0, textarea.value.length);
+
+    try {
+      const success = document.execCommand('copy');
+
+      if (success) {
+        showStatus('프롬프트 본문을 복사했습니다.', 'ok');
+      } else {
         showStatus('복사에 실패했습니다. 본문을 직접 선택해 복사하세요.', 'error');
       }
-
-      document.body.removeChild(textarea);
+    } catch (error) {
+      showStatus('복사에 실패했습니다. 본문을 직접 선택해 복사하세요.', 'error');
     }
 
-    function showStatus(message, type) {
-      const statusBox = document.getElementById('statusBox');
+    document.body.removeChild(textarea);
+  }
 
-      statusBox.textContent = message || '';
-      statusBox.className = 'status ' + (type || 'info');
+  function showStatus(message, type) {
+    const statusBox = document.getElementById('statusBox');
+
+    statusBox.textContent = message || '';
+    statusBox.className = 'status ' + (type || 'info');
+  }
+
+  function hidePrompt() {
+    currentPromptBody = '';
+    document.getElementById('promptCard').classList.add('hidden');
+    document.getElementById('promptMeta').textContent = '';
+    document.getElementById('promptTitle').textContent = '';
+    document.getElementById('promptBody').textContent = '';
+  }
+
+  function setLoading(isLoading) {
+    const loadBtn = document.getElementById('loadBtn');
+
+    loadBtn.disabled = isLoading;
+    loadBtn.textContent = isLoading ? '확인 중' : '확인';
+  }
+
+  function hideKeyboard(input) {
+    try {
+      input.blur();
+    } catch (error) {
+      // 무시
+    }
+  }
+
+  document.getElementById('passwordInput').addEventListener('keydown', function (event) {
+    if (event.key === 'Enter') {
+      loadPrompt();
+    }
+  });
+</script>';
+
+  let currentPromptBody = '';
+
+  async function loadPrompt() {
+    const passwordInput = document.getElementById('passwordInput');
+    const password = passwordInput.value.trim();
+
+    if (!password) {
+      showStatus('암호를 입력하세요.', 'error');
+      passwordInput.focus();
+      return;
     }
 
-    function hidePrompt() {
-      currentPromptBody = '';
-      document.getElementById('promptCard').classList.add('hidden');
-      document.getElementById('promptMeta').textContent = '';
-      document.getElementById('promptTitle').textContent = '';
-      document.getElementById('promptBody').textContent = '';
+    hideKeyboard(passwordInput);
+    setLoading(true);
+    showStatus('프롬프트를 불러오는 중입니다.', 'info');
+
+    try {
+      const url = API_URL + '?password=' + encodeURIComponent(password) + '&t=' + Date.now();
+
+      const response = await fetch(url, {
+        method: 'GET',
+        cache: 'no-store'
+      });
+
+      const result = await response.json();
+
+      setLoading(false);
+      handleApiResult(result);
+
+    } catch (error) {
+      setLoading(false);
+      showStatus('연결에 실패했습니다. 인터넷 상태를 확인한 뒤 다시 시도하세요.', 'error');
+    }
+  }
+
+  function handleApiResult(result) {
+    if (!result) {
+      showStatus('응답을 받지 못했습니다.', 'error');
+      return;
     }
 
-    function setLoading(isLoading) {
-      const loadBtn = document.getElementById('loadBtn');
+    if (!result.ok) {
+      hidePrompt();
 
-      loadBtn.disabled = isLoading;
-      loadBtn.textContent = isLoading ? '확인 중' : '확인';
-    }
-
-    function cleanupJsonp(callbackName) {
-      if (jsonpScript && jsonpScript.parentNode) {
-        jsonpScript.parentNode.removeChild(jsonpScript);
+      if (result.status === 'WRONG_PASSWORD') {
+        showStatus('암호가 맞지 않습니다.', 'error');
+        return;
       }
 
-      jsonpScript = null;
-
-      try {
-        delete window[callbackName];
-      } catch (error) {
-        window[callbackName] = undefined;
+      if (result.status === 'NOT_SENT') {
+        showStatus('암호는 맞지만 아직 송출된 프롬프트가 없습니다.', 'info');
+        return;
       }
+
+      showStatus(result.message || '프롬프트를 불러오지 못했습니다.', 'error');
+      return;
     }
 
-    function hideKeyboard(input) {
-      try {
-        input.blur();
-      } catch (error) {
-        // 무시
-      }
+    const data = result.data || {};
+
+    currentPromptBody = data.body || '';
+
+    document.getElementById('promptMeta').textContent = [
+      data.promptId ? '프롬프트번호: ' + data.promptId : '',
+      data.sentAt ? '송출시각: ' + data.sentAt : ''
+    ].filter(Boolean).join(' · ');
+
+    document.getElementById('promptTitle').textContent = data.title || '프롬프트';
+    document.getElementById('promptBody').textContent = currentPromptBody;
+    document.getElementById('promptCard').classList.remove('hidden');
+
+    showStatus('프롬프트를 불러왔습니다.', 'ok');
+  }
+
+  function copyPrompt() {
+    const text = String(currentPromptBody || '').trim();
+
+    if (!text) {
+      showStatus('복사할 프롬프트가 없습니다.', 'error');
+      return;
     }
 
-    document.getElementById('passwordInput').addEventListener('keydown', function (event) {
-      if (event.key === 'Enter') {
-        loadPrompt();
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(text)
+        .then(function () {
+          showStatus('프롬프트 본문을 복사했습니다.', 'ok');
+        })
+        .catch(function () {
+          fallbackCopy(text);
+        });
+
+      return;
+    }
+
+    fallbackCopy(text);
+  }
+
+  function fallbackCopy(text) {
+    const textarea = document.createElement('textarea');
+
+    textarea.value = text;
+    textarea.setAttribute('readonly', '');
+    textarea.style.position = 'fixed';
+    textarea.style.left = '-9999px';
+    textarea.style.top = '0';
+
+    document.body.appendChild(textarea);
+    textarea.focus();
+    textarea.select();
+    textarea.setSelectionRange(0, textarea.value.length);
+
+    try {
+      const success = document.execCommand('copy');
+
+      if (success) {
+        showStatus('프롬프트 본문을 복사했습니다.', 'ok');
+      } else {
+        showStatus('복사에 실패했습니다. 본문을 직접 선택해 복사하세요.', 'error');
       }
-    });
-  </script>
-</body>
-</html>
+    } catch (error) {
+      showStatus('복사에 실패했습니다. 본문을 직접 선택해 복사하세요.', 'error');
+    }
+
+    document.body.removeChild(textarea);
+  }
+
+  function showStatus(message, type) {
+    const statusBox = document.getElementById('statusBox');
+
+    statusBox.textContent = message || '';
+    statusBox.className = 'status ' + (type || 'info');
+  }
+
+  function hidePrompt() {
+    currentPromptBody = '';
+    document.getElementById('promptCard').classList.add('hidden');
+    document.getElementById('promptMeta').textContent = '';
+    document.getElementById('promptTitle').textContent = '';
+    document.getElementById('promptBody').textContent = '';
+  }
+
+  function setLoading(isLoading) {
+    const loadBtn = document.getElementById('loadBtn');
+
+    loadBtn.disabled = isLoading;
+    loadBtn.textContent = isLoading ? '확인 중' : '확인';
+  }
+
+  function hideKeyboard(input) {
+    try {
+      input.blur();
+    } catch (error) {
+      // 무시
+    }
+  }
+
+  document.getElementById('passwordInput').addEventListener('keydown', function (event) {
+    if (event.key === 'Enter') {
+      loadPrompt();
+    }
+  });
+</script>
